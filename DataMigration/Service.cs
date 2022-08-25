@@ -11,13 +11,13 @@ namespace DataMigration
 {
     internal class Service
     {
-        ConnectionBase ConnectionBase;
+        private readonly ConnectionBase ConnectionBase;
 
         public Service(ConnectionBase connectionBase)
         {
-
             ConnectionBase = connectionBase;
         }
+
 
         public List<String> GetAllTable(string sql)
         {
@@ -38,7 +38,7 @@ namespace DataMigration
             return res;
         }
 
-        private static DbParameter[] GenerateParameters(Dictionary<string, object> bindings, IEnumerable<DbParameter> parameters)
+        private DbParameter[] GenerateParameters(Dictionary<string, object> bindings, IEnumerable<DbParameter> parameters = null)
         {
             var hasBindings = bindings != null && bindings.Count > 0;
             var hasParameters = parameters != null && parameters.Count() > 0;
@@ -53,14 +53,15 @@ namespace DataMigration
                 foreach (var binding in bindings)
                 {
                     var value = (binding.Value == null ? DBNull.Value : binding.Value);
-                    // result.Add(GetDataProvider().GetParameter(binding.Key, value));
+                    var _temp = ConnectionBase.GetParameter(binding.Key, value);
+                    result.Add(_temp);
                 }
             }
             if (hasParameters)
             {
                 foreach (var parameter in parameters)
                 {
-                    //    result.Add(GetDataProvider().GetParameter(parameter.ParameterName, parameter.Value));
+                    result.Add(ConnectionBase.GetParameter(parameter.ParameterName, parameter.Value));
                 }
             }
             return result.ToArray();
@@ -77,7 +78,7 @@ namespace DataMigration
 
             foreach (DataColumn column in dt.Columns)
             {
-                res.Add(column.ColumnName);
+                res.Add(column.ColumnName.ToLower());
             }
             return res;
         }
@@ -95,14 +96,23 @@ namespace DataMigration
         }
 
 
-        public void InsertData(Query query)
+        public bool ExecuteNonQuery(Query query, out string message)
         {
+            message = "";
             var sql = ConnectionBase.GenerateSql(query);
+            var sql_params = GenerateParameters(sql.NamedBindings);
+            try
+            {
 
-            var params = GenerateParameters(sql.NamedBindings);
+                ConnectionBase.ExecuteNonQuery(sql.Sql, sql_params);
+                return true;
+            }
+            catch (Exception exc)
+            {
+                message = exc.Message;
+                return false;
 
-
-
+            }
         }
 
 
